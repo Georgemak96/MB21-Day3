@@ -39,13 +39,16 @@ Let's have a cursory look at the data, especially check the distribution of the 
 ### `head()`
 
 ```{r}
-
+head(data_vac$Booster_Doses_18Plus_Vax_Pct)
+class(data_vac$Booster_Doses_18Plus_Vax_Pct)
 ```
 
 ### Check the distribution of the output
 
 ```{r}
-
+data_vac %>% count(Booster_Doses_18Plus_Vax_Pct) %>% ggplot(aes(Booster_Doses_18Plus_Vax_Pct)) +
+  geom_histogram()
+##it needs to be done normal. Standardization would be a solution
 ```
 
 ```{r}
@@ -62,7 +65,7 @@ Let's have a cursory look at the data, especially check the distribution of the 
 
 
 ```{r}
-
+#men, women, white-Asian, VotingAgeCitizen,Income,Poverty-Drive, PrivateWork-Unemployment
 ```
 
 ## Data preparation
@@ -77,13 +80,18 @@ Using `caret` (or something else if you like), prepare two datasets of pre-proce
 ## Train-test split
 
 ```{r}
-
+train <- sample(nrow(data_vac), nrow(data_vac)*.7)
+data_vac_train <-data_vac %>% slice(train)
+data_vac_test <- data_vac %>% slice(-train)
 ```
 
 ## Preprocess
 
 ```{r}
-
+data_vac_prep<- preProcess(data_vac_train, method = c("center", "scale"))
+data_vac_train_processed <- predict(data_vac_prep, data_vac_train) %>% as.data.frame()
+data_vac_test_processed <- predict(data_vac_prep, data_vac_test) %>% as.data.frame()
+class(data_vac_train_processed)
 ```
 
 
@@ -95,7 +103,12 @@ Using `caret` (or something else if you like), prepare two datasets of pre-proce
 - Evaluate the model
 
 ```{r}
-
+reg_model <- lm(pct_trump ~ Men+ Women+White+Asian+Black+Hispanic+Pacific+ VotingAgeCitizen + Income+ IncomePerCap+ Poverty+ ChildPoverty+ Professional+ Service+ Office+ Construction+ Production+Employed+ PrivateWork+ PublicWork+ SelfEmployed+ FamilyWork+ Unemployment +TotalPop+Drive+ Carpool+ Transit+ Walk+ OtherTransp+ WorkAtHome+ MeanCommute, data= data_vac_train_processed)
+summary(reg_model)
+predictions_test<- predict(reg_model, data_vac_test_processed)
+rmse_test <- sqrt(mean((data_vac_test_processed$pct_trump - predictions_test)^2))
+predictions_train <- predict(reg_model)
+rmse_train <- sqrt(mean((data_vac_train_processed$pct_trump- predictions_train)^2))
 ```
 ```{r}
 
@@ -115,13 +128,26 @@ Using the linear regression model as the baseline we attempt two things:
 
 
 ```{r}
-
+tune_grid = expand.grid(k = c(3,4,5,7,9,10,15,20,25,30))
+tr = trainControl(method = "repeatedcv", number = 5, repeats = 3)
+knn_model <- train(pct_trump ~ Men+ Women+White+Asian+Black+Hispanic+Pacific+ VotingAgeCitizen + Income+ IncomePerCap+ Poverty+ ChildPoverty+ Professional+ Service+ Office+ Construction+ Production+Employed+ PrivateWork+ PublicWork+ SelfEmployed+ FamilyWork+ Unemployment +TotalPop+Drive+ Carpool+ Transit+ Walk+ OtherTransp+ WorkAtHome+ MeanCommute, data= data_vac_train_processed, method = "knn", trControl = tr, tuneGrid = tune_grid)
+predictions_test <- predict(knn_model, data_vac_test_processed)
+rmse_knn_test = sqrt(mean((data_vac_test_processed$pct_trump - predictions_test)^2))
+predictions_train <- predict(knn_model)
+rmse_knn_train <- sqrt(mean((data_vac_train_processed$pct_trump - predictions_train)^2))
+plot(knn_model)
+###knn performs better in terms of fitting on the training set only and svm performs better both at the variance and the bias
 ```
 
 ### SVM with Radial Kernel
 
 ```{r}
-
+tr = trainControl(method = "repeatedcv", number = 5, repeats = 3)
+svm_model <- train(pct_trump ~ Men+ Women+White+Asian+Black+Hispanic+Pacific+ VotingAgeCitizen + Income+ IncomePerCap+ Poverty+ ChildPoverty+ Professional+ Service+ Office+ Construction+ Production+Employed+ PrivateWork+ PublicWork+ SelfEmployed+ FamilyWork+ Unemployment +TotalPop+Drive+ Carpool+ Transit+ Walk+ OtherTransp+ WorkAtHome+ MeanCommute, data= data_vac_train_processed, method="svmRadial", trainControl = tr)
+predictions_test <- predict(svm_model, data_vac_test_processed)
+rmse_svm_test = sqrt(mean((data_vac_test_processed$pct_trump - predictions_test)^2))
+predictions_train <- predict(svm_model)
+rmse_svm_train <- sqrt(mean((data_vac_train_processed$pct_trump - predictions_train)^2))
 ```
 
 
@@ -134,7 +160,17 @@ Using the linear regression model as the baseline we attempt two things:
 ### LASSO Outcome
 
 ```{r}
-
+data_vac_train_processed_x <- data_vac_train_processed %>% select(Men, Women,White,Asian,Black,Hispanic,Pacific,VotingAgeCitizen,Income,IncomePerCap, Poverty,ChildPoverty,Professional,Service,Office,Construction,Production,Employed,PrivateWork,PublicWork,SelfEmployed, FamilyWork, Unemployment,TotalPop,Drive, Carpool, Transit, Walk, OtherTransp,WorkAtHome, MeanCommute) %>% as.matrix()
+data_vac_train_processed_y = data_vac_train_processed$pct_trump
+data_vac_test_processed_x <- data_vac_test_processed %>% select(Men, Women,White,Asian,Black,Hispanic,Pacific,VotingAgeCitizen,Income,IncomePerCap, Poverty,ChildPoverty,Professional,Service,Office,Construction,Production,Employed,PrivateWork,PublicWork,SelfEmployed, FamilyWork, Unemployment,TotalPop,Drive, Carpool, Transit, Walk, OtherTransp,WorkAtHome, MeanCommute) %>% as.matrix()
+data_vac_test_processed_y <-data_vac_test_processed$pct_trump
+lasso_reg <- cv.glmnet(data_vac_train_processed_x, data_vac_train_processed_y, alpha = 1,  type.measure = "mse", family = "gaussian")
+plot(lasso_reg)
+bestlambda <- lasso_reg$lambda.1se
+predictions_train <- predict(lasso_reg,newx =data_vac_train_processed_x, s =bestlambda)
+rmse_lasso_train = sqrt(mean((data_vac_train_processed_y - predictions_train)^2))
+predictions_test <- predict(lasso_reg,data_vac_test_processed_x,s=bestlambda )
+rmse_lasso_test <- sqrt(mean(( data_vac_test_processed_y- predictions_test)^2))
 ```
 
 #### Plot with `plot_glmnet`
@@ -142,7 +178,9 @@ Using the linear regression model as the baseline we attempt two things:
 Shrinkage plot of `glmnet` is not informative as it won't show the variable name. Instead you can use `plot_glmnet` in `plotmo` package.
 
 ```{r}
-
+library(plotmo)
+plot_glmnet(lasso_reg$glmnet.fit, xvar = "lambda")
+abline(v = log(lasso_reg$lambda.1se)) ##all were eliminatedd
 ```
 
 
@@ -150,13 +188,22 @@ Shrinkage plot of `glmnet` is not informative as it won't show the variable name
 ### Ridge regression outcome
 
 ```{r}
+ridge_reg <- cv.glmnet(data_vac_train_processed_x, data_vac_train_processed_y, alpha = 0,  type.measure = "mse", family = "gaussian")
+plot(ridge_reg)
+bestlambda <- ridge_reg$lambda.1se
+predictions_train <- predict(ridge_reg,newx =data_vac_train_processed_x, s =bestlambda)
+rmse_ridge_train = sqrt(mean((data_vac_train_processed_y - predictions_train)^2))
+predictions_test <- predict(ridge_reg,data_vac_test_processed_x,s=bestlambda )
+rmse_ridge_test <- sqrt(mean(( data_vac_test_processed_y- predictions_test)^2))
+coef(ridge_reg)
 
 ```
 
 #### Plot with `plot_glmnet`
 
 ```{r}
-
+plot_glmnet(ridge_reg$glmnet.fit, xvar = "lambda")
+abline(v = log(lasso_reg$lambda.1se)) 
 ```
 
 ### Compare coefs: lm, lasso/ridge
@@ -164,5 +211,10 @@ Shrinkage plot of `glmnet` is not informative as it won't show the variable name
 Compare the cefficients across the models. What do you find?
 
 ```{r}
-
+cbind(coef(reg_model), coef(lasso_reg), coef(ridge_reg)) ###lasso has no variables, linear regression has them all, ridge regression has shrunken towards zero a lot of them.
+###Final comparison
+data.frame(rmse_train_regression = rmse_train, rmse_train_knn = rmse_knn_train, rmse_train_svm = rmse_svm_train, rmse_train_lasso = rmse_lasso_train, rmse_train_ridge = rmse_ridge_train)
+data.frame(rmse_test_regression = rmse_test, rmse_test_knn = rmse_knn_test, rmse_test_svm = rmse_svm_test, rmse_test_lasso = rmse_lasso_test,rmse_test_ridge = rmse_ridge_test)
+###in terms of bias knn regressionnn seems to had the lowestt 
+###in terms of variance svm regression, as well as linear regression wins but by a narrowmarginn
 ```
