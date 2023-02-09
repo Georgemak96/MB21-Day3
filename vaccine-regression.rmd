@@ -46,7 +46,7 @@ class(data_vac$Booster_Doses_18Plus_Vax_Pct)
 ### Check the distribution of the output
 
 ```{r}
-data_vac %>% count(Booster_Doses_18Plus_Vax_Pct) %>% ggplot(aes(Booster_Doses_18Plus_Vax_Pct)) +
+data_vac  %>% ggplot(aes(Booster_Doses_18Plus_Vax_Pct)) +
   geom_histogram()
 ##it needs to be done normal. Standardization would be a solution
 ```
@@ -103,7 +103,7 @@ class(data_vac_train_processed)
 - Evaluate the model
 
 ```{r}
-reg_model <- lm(pct_trump ~ Men+ Women+White+Asian+Black+Hispanic+Pacific+ VotingAgeCitizen + Income+ IncomePerCap+ Poverty+ ChildPoverty+ Professional+ Service+ Office+ Construction+ Production+Employed+ PrivateWork+ PublicWork+ SelfEmployed+ FamilyWork+ Unemployment +TotalPop+Drive+ Carpool+ Transit+ Walk+ OtherTransp+ WorkAtHome+ MeanCommute, data= data_vac_train_processed)
+reg_model <- lm(Booster_Doses_18Plus_Vax_Pct ~ Men+ Women+White+Asian+Black+Hispanic+Pacific+ VotingAgeCitizen + Income+ IncomePerCap+ Poverty+ ChildPoverty+ Professional+ Service+ Office+ Construction+ Production+Employed+ PrivateWork+ PublicWork+ SelfEmployed+ FamilyWork+ Unemployment +TotalPop+Drive+ Carpool+ Transit+ Walk+ OtherTransp+ WorkAtHome+ MeanCommute, data= data_vac_train_processed)
 summary(reg_model)
 predictions_test<- predict(reg_model, data_vac_test_processed)
 rmse_test <- sqrt(mean((data_vac_test_processed$pct_trump - predictions_test)^2))
@@ -130,20 +130,21 @@ Using the linear regression model as the baseline we attempt two things:
 ```{r}
 tune_grid = expand.grid(k = c(3,4,5,7,9,10,15,20,25,30))
 tr = trainControl(method = "repeatedcv", number = 5, repeats = 3)
-knn_model <- train(pct_trump ~ Men+ Women+White+Asian+Black+Hispanic+Pacific+ VotingAgeCitizen + Income+ IncomePerCap+ Poverty+ ChildPoverty+ Professional+ Service+ Office+ Construction+ Production+Employed+ PrivateWork+ PublicWork+ SelfEmployed+ FamilyWork+ Unemployment +TotalPop+Drive+ Carpool+ Transit+ Walk+ OtherTransp+ WorkAtHome+ MeanCommute, data= data_vac_train_processed, method = "knn", trControl = tr, tuneGrid = tune_grid)
+data_vac_train_processed <- data_vac_train_processed %>% na.omit()
+knn_model <- train(Booster_Doses_18Plus_Vax_Pct ~ Men+ Women+White+Asian+Black+Hispanic+Pacific+ VotingAgeCitizen + Income+ IncomePerCap+ Poverty+ ChildPoverty+ Professional+ Service+ Office+ Construction+ Production+Employed+ PrivateWork+ PublicWork+ SelfEmployed+ FamilyWork+ Unemployment +TotalPop+Drive+ Carpool+ Transit+ Walk+ OtherTransp+ WorkAtHome+ MeanCommute, data= data_vac_train_processed, method = "knn", trControl = tr, tuneGrid = tune_grid)
 predictions_test <- predict(knn_model, data_vac_test_processed)
 rmse_knn_test = sqrt(mean((data_vac_test_processed$pct_trump - predictions_test)^2))
 predictions_train <- predict(knn_model)
 rmse_knn_train <- sqrt(mean((data_vac_train_processed$pct_trump - predictions_train)^2))
 plot(knn_model)
-###knn performs better in terms of fitting on the training set only and svm performs better both at the variance and the bias
+
 ```
 
 ### SVM with Radial Kernel
 
 ```{r}
 tr = trainControl(method = "repeatedcv", number = 5, repeats = 3)
-svm_model <- train(pct_trump ~ Men+ Women+White+Asian+Black+Hispanic+Pacific+ VotingAgeCitizen + Income+ IncomePerCap+ Poverty+ ChildPoverty+ Professional+ Service+ Office+ Construction+ Production+Employed+ PrivateWork+ PublicWork+ SelfEmployed+ FamilyWork+ Unemployment +TotalPop+Drive+ Carpool+ Transit+ Walk+ OtherTransp+ WorkAtHome+ MeanCommute, data= data_vac_train_processed, method="svmRadial", trainControl = tr)
+svm_model <- train(Booster_Doses_18Plus_Vax_Pct ~ Men+ Women+White+Asian+Black+Hispanic+Pacific+ VotingAgeCitizen + Income+ IncomePerCap+ Poverty+ ChildPoverty+ Professional+ Service+ Office+ Construction+ Production+Employed+ PrivateWork+ PublicWork+ SelfEmployed+ FamilyWork+ Unemployment +TotalPop+Drive+ Carpool+ Transit+ Walk+ OtherTransp+ WorkAtHome+ MeanCommute, data= data_vac_train_processed, method="svmRadial", trainControl = tr)
 predictions_test <- predict(svm_model, data_vac_test_processed)
 rmse_svm_test = sqrt(mean((data_vac_test_processed$pct_trump - predictions_test)^2))
 predictions_train <- predict(svm_model)
@@ -161,9 +162,9 @@ rmse_svm_train <- sqrt(mean((data_vac_train_processed$pct_trump - predictions_tr
 
 ```{r}
 data_vac_train_processed_x <- data_vac_train_processed %>% select(Men, Women,White,Asian,Black,Hispanic,Pacific,VotingAgeCitizen,Income,IncomePerCap, Poverty,ChildPoverty,Professional,Service,Office,Construction,Production,Employed,PrivateWork,PublicWork,SelfEmployed, FamilyWork, Unemployment,TotalPop,Drive, Carpool, Transit, Walk, OtherTransp,WorkAtHome, MeanCommute) %>% as.matrix()
-data_vac_train_processed_y = data_vac_train_processed$pct_trump
+data_vac_train_processed_y = data_vac_train_processed$Booster_Doses_18Plus_Vax_Pct
 data_vac_test_processed_x <- data_vac_test_processed %>% select(Men, Women,White,Asian,Black,Hispanic,Pacific,VotingAgeCitizen,Income,IncomePerCap, Poverty,ChildPoverty,Professional,Service,Office,Construction,Production,Employed,PrivateWork,PublicWork,SelfEmployed, FamilyWork, Unemployment,TotalPop,Drive, Carpool, Transit, Walk, OtherTransp,WorkAtHome, MeanCommute) %>% as.matrix()
-data_vac_test_processed_y <-data_vac_test_processed$pct_trump
+data_vac_test_processed_y <-data_vac_test_processed$Booster_Doses_18Plus_Vax_Pct
 lasso_reg <- cv.glmnet(data_vac_train_processed_x, data_vac_train_processed_y, alpha = 1,  type.measure = "mse", family = "gaussian")
 plot(lasso_reg)
 bestlambda <- lasso_reg$lambda.1se
@@ -171,6 +172,7 @@ predictions_train <- predict(lasso_reg,newx =data_vac_train_processed_x, s =best
 rmse_lasso_train = sqrt(mean((data_vac_train_processed_y - predictions_train)^2))
 predictions_test <- predict(lasso_reg,data_vac_test_processed_x,s=bestlambda )
 rmse_lasso_test <- sqrt(mean(( data_vac_test_processed_y- predictions_test)^2))
+coef(lasso_reg)
 ```
 
 #### Plot with `plot_glmnet`
@@ -180,7 +182,7 @@ Shrinkage plot of `glmnet` is not informative as it won't show the variable name
 ```{r}
 library(plotmo)
 plot_glmnet(lasso_reg$glmnet.fit, xvar = "lambda")
-abline(v = log(lasso_reg$lambda.1se)) ##all were eliminatedd
+abline(v = log(lasso_reg$lambda.1se)) 
 ```
 
 
@@ -211,7 +213,7 @@ abline(v = log(lasso_reg$lambda.1se))
 Compare the cefficients across the models. What do you find?
 
 ```{r}
-cbind(coef(reg_model), coef(lasso_reg), coef(ridge_reg)) ###lasso has no variables, linear regression has them all, ridge regression has shrunken towards zero a lot of them.
+cbind(coef(reg_model), coef(lasso_reg), coef(ridge_reg)) 
 ###Final comparison
 data.frame(rmse_train_regression = rmse_train, rmse_train_knn = rmse_knn_train, rmse_train_svm = rmse_svm_train, rmse_train_lasso = rmse_lasso_train, rmse_train_ridge = rmse_ridge_train)
 data.frame(rmse_test_regression = rmse_test, rmse_test_knn = rmse_knn_test, rmse_test_svm = rmse_svm_test, rmse_test_lasso = rmse_lasso_test,rmse_test_ridge = rmse_ridge_test)
