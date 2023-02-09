@@ -171,7 +171,7 @@ bestlambda <- lasso_reg$lambda.1se
 predictions_train <- predict(lasso_reg,newx =data_vac_train_processed_x, s =bestlambda)
 rmse_lasso_train = sqrt(mean((data_vac_train_processed_y - predictions_train)^2))
 predictions_test <- predict(lasso_reg,data_vac_test_processed_x,s=bestlambda )
-rmse_lasso_test <- sqrt(mean(( data_vac_test_processed_y- predictions_test)^2))
+rmse_lasso_test <- sqrt(mean(( data_vac_test_processed_y- predictions_test)^2, na.rm = TRUE))
 coef(lasso_reg)
 ```
 
@@ -196,7 +196,7 @@ bestlambda <- ridge_reg$lambda.1se
 predictions_train <- predict(ridge_reg,newx =data_vac_train_processed_x, s =bestlambda)
 rmse_ridge_train = sqrt(mean((data_vac_train_processed_y - predictions_train)^2))
 predictions_test <- predict(ridge_reg,data_vac_test_processed_x,s=bestlambda )
-rmse_ridge_test <- sqrt(mean(( data_vac_test_processed_y- predictions_test)^2))
+rmse_ridge_test <- sqrt(mean(( data_vac_test_processed_y- predictions_test)^2,na.rm = TRUE))
 coef(ridge_reg)
 
 ```
